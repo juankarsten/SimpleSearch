@@ -4,6 +4,14 @@
 %modelbool_stem;
 %titleofdoc;
 
+sub trim{
+	my $str;
+	$str = $_[0];
+	$str =~ s/^\s+//;
+	$str =~ s/\s+$//;
+	return $str;
+}
+
 sub readfile{
 	open FILEHANDLE, $_[0] or die $!;
 	my $string = do { local $/; <FILEHANDLE> };
@@ -76,28 +84,39 @@ sub process_doc{
 		$judul = clean_sentence($judul);
 		$teks = clean_sentence($teks);
 		
+		#trim number doc and title
+		$no =~ s/^\s+//;
+		$no =~ s/\s+$//;
+		$judul =~ s/^\s+//;
+		$judul =~ s/\s+$//;
+		
+		
 		$titleofdoc{$no}=$judul;
 		@words = split(/\s+/,$judul);
 		for $word(@words){
 			if($word  ne ""){
-				$modelbool{$word}{$no}=1;
+				#$modelbool{$word}{$no}=1;
+				$modelbool{$no}{$word}=1;
 			}
 			
 			$stem_result = stemming($word);
 			if($stem_result ne ""){
-					$modelbool_stem{$stem_result}{$no}=1;
+				#$modelbool_stem{$stem_result}{$no}=1;
+				$modelbool_stem{$no}{$stem_result}=1;
 			}
 			
 		}
 		@words = split(/\s+/,$teks);
 		for $word(@words){
 			if($word  ne ""){
-				$modelbool{$word}{$no}=1;
+				#$modelbool{$word}{$no}=1;
+				$modelbool{$no}{$word}=1;
 			}
 			
 			$stem_result = stemming($word);
 			if($stem_result  ne ""){
-					$modelbool_stem{$stem_result}{$no}=1;
+				#$modelbool_stem{$stem_result}{$no}=1;
+				$modelbool_stem{$no}{$stem_result}=1;
 			}
 		}
 		
@@ -109,6 +128,51 @@ sub searchquery{
 	open hasil , ">hasil.txt";
 	
 	# read file and search all query
+	open(kueris,"kueri.txt");
+	while (my $query=<kueris>){
+		$query=~s/[\n,\r]*//gi;
+		print hasil $query."\n";
+		
+		
+		# without stem
+		if (substr($query,0,1) eq "#" ){	
+			$query1 = substr($query,1,length($query)-1);
+			print $query1."my query\n";
+			my $ii = 0;
+			for $no(sort keys %modelbool){
+				if($modelbool{$no}{$query1}){
+					print hasil "    - ".$titleofdoc{$no}."\n";
+					$ii = $ii+1;
+					if($ii>=10){
+						last;
+					}
+				}
+			}
+		# with stemming
+		}else{
+			$query1 = stemming($query);
+			#print $query1;
+			my $ii = 0;
+			for $no(sort keys %modelbool_stem){
+				if($modelbool_stem{$no}{$query1}){
+					#print hasil $no."\n";
+					print hasil "    - ".$titleofdoc{$no}."\n";
+					$ii = $ii+1;
+					if($ii>=10){
+						last;
+					}
+				}
+			}
+		}
+	}
+	
+	close(hasil);
+}
+
+sub searchquery1{
+	open hasil , ">hasil.txt";
+	
+	# read file and search all query
 	my $queries = readfile("kueri.txt");
 	@queries = split(/\s+/,$queries);
 	for $query(@queries){
@@ -117,7 +181,7 @@ sub searchquery{
 		# without stem
 		if (substr($query,0,1) eq "#" ){	
 			$query1 = substr($query,1,length($query)-1);
-			#print $query1;
+			print $query1;
 			%doks=%{$modelbool{$query1}};
 			my $ii = 0;
 			for $no(keys %doks){
@@ -543,16 +607,20 @@ sub parsetree{
 				# check and
 				if($ii <= $end-4 and $letters[$ii] eq " " and $letters[$ii+1] eq "a" and $letters[$ii+2] eq "n" and $letters[$ii+3] eq "d" and $letters[$ii+3] eq " "){
 					$op="and";
-					$left = parsetree($start,,$len,@letters);
-					$right = parsetree(,$end,$len,@letters);
+					#$left = parsetree($start,,$len,@letters);
+					#$right = parsetree(,$end,$len,@letters);
 				}
 				# check or
 				elsif($ii <= $end-3 and $letters[$ii] eq " " and $letters[$ii+1] eq "o" and $letters[$ii+2] eq "r" and $letters[$ii+3] eq " "){
 					$op="or";
-					$left = parsetree($start,,$len,@letters);
-					$right = parsetree(,$end,$len,@letters);
+					#$left = parsetree($start,,$len,@letters);
+					#$right = parsetree(,$end,$len,@letters);
 				}
 			}
+		}
+		
+		if (op eq ""){
+			
 		}
 		
 		#if($kurung == 1 and )
@@ -574,6 +642,7 @@ process_doc($file);
 
 print "query...\n";
 searchquery();
+
 
 
 #open(file,">stem.txt");
