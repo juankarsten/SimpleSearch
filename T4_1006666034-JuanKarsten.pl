@@ -73,10 +73,14 @@ sub clean_sentence{
 }
 
 sub process_doc{
-	my $str;
+	my $str; my $content; my $rest;
 	$str= $_[0];
 	($content,$rest)=gettagcontent($str,2,"dok","doc");
-	while ($rest ne ""){
+	while (1){
+		if($content eq "" and $rest eq ""){
+			last;
+		}
+		
 		($no,$content)=gettagcontent($content,1,"no");
 		($judul,$content)=gettagcontent($content,1,"judul");
 		($teks,$content)=gettagcontent($content,1,"teks");
@@ -90,6 +94,7 @@ sub process_doc{
 		$no =~ s/\s+$//;
 		$judul =~ s/^\s+//;
 		$judul =~ s/\s+$//;
+		#print $no;
 		
 		
 		$titleofdoc{$no}=$judul_prev;
@@ -121,6 +126,7 @@ sub process_doc{
 			}
 		}
 		
+		
 		($content,$rest)=gettagcontent($rest,2,"dok","doc");
 	}
 }
@@ -141,8 +147,10 @@ sub searchquery{
 			#print $query1."my query\n";
 			my $ii = 0;
 			for $no(sort keys %modelbool){
+				#print $no;
 				#if($modelbool{$no}{$query1}){
-				if(parsetree(0,length($query1)-1, length($query1),$no, split(//,$query1))){
+				@query_letter = split(//,$query1);
+				if(parsetree(0,length($query1)-1, length($query1),$no, \@query_letter,\%modelbool,$NOSTEM)){
 					print hasil "    - ".$titleofdoc{$no}."\n";
 					$ii = $ii+1;
 					if($ii>=10){
@@ -156,7 +164,8 @@ sub searchquery{
 			#print $query1;
 			my $ii = 0;
 			for $no(sort keys %modelbool_stem){
-				if($modelbool_stem{$no}{$query1}){
+				@query_letter = split(//,$query1);
+				if(parsetree(0,length($query1)-1, length($query1),$no, \@query_letter,\%modelbool_stem,$STEM)){
 					#print hasil $no."\n";
 					print hasil "    - ".$titleofdoc{$no}."\n";
 					$ii = $ii+1;
@@ -183,7 +192,7 @@ sub searchquery1{
 		# without stem
 		if (substr($query,0,1) eq "#" ){	
 			$query1 = substr($query,1,length($query)-1);
-			print $query1;
+			#print $query1;
 			%doks=%{$modelbool{$query1}};
 			my $ii = 0;
 			for $no(keys %doks){
@@ -585,67 +594,69 @@ sub handle_te{
 	return ($root,"");
 }
 
+$STEM = 0;
+$NOSTEM = 1;
+
 sub parsetree{
-	my $start;	my $end;my $len;my $doknum; my @letters;
+	my $start;	my $end;my $len;my $doknum; my @letters; my %model; my $type;
 	$start = $_[0];
 	$end = $_[1];
 	$len = $_[2];
 	$dok_num = $_[3];
-	@letters = @_[4..$len+4];
+	@letters = @{$_[4]};
+	%model = %{$_[5]};
+	$type = $_[6];
 	
-	#print "masuk ".$start." ".$end."\n";
-	#my $state = 0; my $str="";
-	#for $ii($start..$end){
-	#	if($state == 0 and $letters[$ii] ne " "){
-	#		$state =1;
-	#		$start = $ii;
-	#	}elsif($state == 1 and $letters[$ii] eq " "){
-	#		$state =2;
-	#		$end = $ii-1;
-	#	}
-	#}
+	# trim front and rear space
+	for $ii($start..$end){
+		if($letters[$ii] ne " "){
+			$start = $ii;
+			last;
+		}
+	}
+	for(my $ii = $end; $ii>=$start; $ii--){
+		if($letters[$ii] ne " "){
+			$end = $ii;
+			last;
+		}
+	}
 	
 	
-	
+	# remove ( and )
 	if($letters[$start] eq "(" and $letters[$end] eq ")"){
 		$start = $start + 1;
 		$end = $end - 1;
 		#print $start." ".$end;
 	}
 	
-	my $nokurung = 1;
-	my $kurung = 0;
-	my $first = 0;
-	my $left=1; my $right=1; my $op="";
-	#print $letters[$start]."-";
+	my $nokurung = 1;	my $kurung = 0;
+	my $first = 0;	my $left=1; my $right=1;
 	for $ii($start..$end){
 		if ($letters[$ii] eq "("){
 			$kurung = $kurung + 1;
 			$nokurung = 0;
-			#print "no kurung"
 		}elsif ($letters[$ii] eq ")"){
 			$kurung = $kurung - 1;
 		}else{
 			if($kurung == 0){
 				# check and
-				#print $letters[$ii]." ".$letters[$ii+1]." ".$letters[$ii+2]." ".$letters[$ii+3]." \n";
-				if($ii <= $end-4 and $letters[$ii] eq " " and $letters[$ii+1] eq "A" and $letters[$ii+2] eq "N" and $letters[$ii+3] eq "D" and $letters[$ii+4] eq " "){
-					$op="and";
-					#print "AND".$start." ".($ii-1)." --- ".($ii+5)." ".$end;
-					my $left = parsetree($start,$ii-1,$len,$dok_num,@letters);
-					my $right = parsetree($ii+5,$end,$len,$dok_num,@letters);
+				if($ii <= $end-2 and $letters[$ii] eq "A" and $letters[$ii+1] eq "N" and $letters[$ii+2] eq "D" ){
+					#print "AND -->".$start." ".($ii-1)." --- ".($ii+3)." ".$end."\n";
+					my $left = parsetree($start,$ii-1,$len,$dok_num,\@letters,\%model,$type);
+					my $right = parsetree($ii+3,$end,$len,$dok_num,\@letters,\%model,$type);
 					return ($left and $right);
 				}
 				# check or
-				elsif($ii <= $end-3 and $letters[$ii] eq " " and $letters[$ii+1] eq "O" and $letters[$ii+2] eq "R" and $letters[$ii+3] eq " "){
-					$op="or";
-					my $left = parsetree($start,$ii-1,$len,$dok_num,@letters);
-					my $right = parsetree($ii+4,$end,$len,$dok_num,@letters);
+				elsif($ii <= $end-1 and $letters[$ii] eq "O" and $letters[$ii+1] eq "R" ){
+					#print "OR -->".$start." ".($ii-1)." --- ".($ii+2)." ".$end."\n";
+					my $left = parsetree($start,$ii-1,$len,$dok_num,\@letters,\%model,$type);
+					my $right = parsetree($ii+2,$end,$len,$dok_num,\@letters,\%model,$type);
 					return ($left or $right);
 				}
 				# check not
 				elsif($ii <= $end-2 and $letters[$ii] eq "N" and $letters[$ii+1] eq "O" and $letters[$ii+2] eq "T" ){
-					my $left = parsetree($ii+3,$end,$len,$dok_num,@letters);
+					#print "NOT -->".($ii+3)." ".$end."\n";
+					my $left = parsetree($ii+3,$end,$len,$dok_num,\@letters,\%model,$type);
 					return (not $left);
 				}
 			}
@@ -654,26 +665,33 @@ sub parsetree{
 	if($nokurung){
 		# state 0 trim left space
 		# state 1 concat char
-		# state 2 trim right space
 		#print "\nno kurung".$start." ".$end."\n";
-		my $state = 0; my $str="";
+		my $str="";
 		for $ii($start..$end){
-			if($state == 0 and $letters[$ii] ne " "){
-				$state =1;
-			}elsif($state == 1 and $letters[$ii] eq " "){
-				$state =2;
-			}
-			
-			if($state == 1){
-				$str = $str.$letters[$ii]; 
+			if($letters[$ii] ne " "){
+				$start = $ii;
+				last;
 			}
 		}
-		#print "base case " .$str."\n\n";
-		return $modelbool{$dok_num}{$str};
+		for(my $ii = $end; $ii>=$start; $ii--){
+			if($letters[$ii] ne " "){
+				$end = $ii;
+				last;
+			}
+		}
+		for $ii($start..$end){
+			$str = $str.$letters[$ii];
+		}
+		
+		if($type == $STEM){
+			$str = stemming($str);
+		}
+		#print "base case " .$str."\n";
+		return $model{$dok_num}{$str};
 	}
 	
 	#print "masuk".$start.$end;
-	return parsetree($start,$end,$len,$dok_num,@letters);
+	return parsetree($start,$end,$len,$dok_num,\@letters,\%model,$type);
 }
 
 #print clean_sentence("abc-abc. dajskdjf;'f;'g'fd ahdj6jdkjdks asdsadasd asdasds");
@@ -707,9 +725,6 @@ searchquery();
 
 # finish
 $end = time;
-
-
-
 
 print "elapsed times: ".($end-$start)."\n";
 
