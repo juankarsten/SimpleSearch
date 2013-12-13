@@ -592,7 +592,7 @@ sub parsetree{
 	$dok_num = $_[3];
 	@letters = @_[4..$len+4];
 	
-	print "masuk ".$start." ".$end."\n";
+	#print "masuk ".$start." ".$end."\n";
 	
 	if($letters[$start] eq "(" and $letters[$end] eq ")"){
 		$start = $start + 1;
@@ -618,7 +618,7 @@ sub parsetree{
 				#print $letters[$ii]." ".$letters[$ii+1]." ".$letters[$ii+2]." ".$letters[$ii+3]." \n";
 				if($ii <= $end-4 and $letters[$ii] eq " " and $letters[$ii+1] eq "A" and $letters[$ii+2] eq "N" and $letters[$ii+3] eq "D" and $letters[$ii+4] eq " "){
 					$op="and";
-					print "AND".$start." ".($ii-1)." --- ".($ii+5)." ".$end;
+					#print "AND".$start." ".($ii-1)." --- ".($ii+5)." ".$end;
 					my $left = parsetree($start,$ii-1,$len,$dok_num,@letters);
 					my $right = parsetree($ii+5,$end,$len,$dok_num,@letters);
 					return ($left and $right);
@@ -630,6 +630,11 @@ sub parsetree{
 					my $right = parsetree($ii+4,$end,$len,$dok_num,@letters);
 					return ($left or $right);
 				}
+				# check not
+				elsif($ii <= $end-2 and $letters[$ii] eq "N" and $letters[$ii+1] eq "O" and $letters[$ii+2] eq "T" ){
+					my $left = parsetree($ii+3,$end,$len,$dok_num,@letters);
+					return (not $left);
+				}
 			}
 		}
 	}
@@ -637,7 +642,7 @@ sub parsetree{
 		# state 0 trim left space
 		# state 1 concat char
 		# state 2 trim right space
-		print "\nno kurung".$start." ".$end."\n";
+		#print "\nno kurung".$start." ".$end."\n";
 		my $state = 0; my $str="";
 		for $ii($start..$end){
 			if($state == 0 and $letters[$ii] ne " "){
@@ -650,7 +655,7 @@ sub parsetree{
 				$str = $str.$letters[$ii]; 
 			}
 		}
-		print "base case " .$str."\n\n";
+		#print "base case " .$str."\n\n";
 		return $modelbool{$dok_num}{$str};
 	}
 	
