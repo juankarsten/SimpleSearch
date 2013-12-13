@@ -594,6 +594,18 @@ sub parsetree{
 	@letters = @_[4..$len+4];
 	
 	#print "masuk ".$start." ".$end."\n";
+	#my $state = 0; my $str="";
+	#for $ii($start..$end){
+	#	if($state == 0 and $letters[$ii] ne " "){
+	#		$state =1;
+	#		$start = $ii;
+	#	}elsif($state == 1 and $letters[$ii] eq " "){
+	#		$state =2;
+	#		$end = $ii-1;
+	#	}
+	#}
+	
+	
 	
 	if($letters[$start] eq "(" and $letters[$end] eq ")"){
 		$start = $start + 1;
