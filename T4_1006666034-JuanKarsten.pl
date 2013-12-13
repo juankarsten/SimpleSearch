@@ -160,8 +160,9 @@ sub searchquery{
 			}
 		# with stemming
 		}else{
-			$query1 = stemming($query);
+			#$query1 = stemming($query);
 			#print $query1;
+			$query1 = $query;
 			my $ii = 0;
 			for $no(sort keys %modelbool_stem){
 				@query_letter = split(//,$query1);
