@@ -81,6 +81,7 @@ sub process_doc{
 		($judul,$content)=gettagcontent($content,1,"judul");
 		($teks,$content)=gettagcontent($content,1,"teks");
 		
+		$judul_prev = $judul;
 		$judul = clean_sentence($judul);
 		$teks = clean_sentence($teks);
 		
@@ -91,7 +92,7 @@ sub process_doc{
 		$judul =~ s/\s+$//;
 		
 		
-		$titleofdoc{$no}=$judul;
+		$titleofdoc{$no}=$judul_prev;
 		@words = split(/\s+/,$judul);
 		for $word(@words){
 			if($word  ne ""){
