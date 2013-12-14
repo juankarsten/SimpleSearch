@@ -4,6 +4,7 @@
 %modelbool_stem;
 %titleofdoc;
 
+#trim word
 sub trim{
 	my $str;
 	$str = $_[0];
@@ -12,6 +13,7 @@ sub trim{
 	return $str;
 }
 
+#read whole file
 sub readfile{
 	open FILEHANDLE, $_[0] or die $!;
 	my $string = do { local $/; <FILEHANDLE> };
@@ -22,7 +24,7 @@ sub readfile{
 }
 
 
-
+# take content of a tag
 sub gettagcontent{
 	my $str,$variation,$word,$length_str;
 	$str = $_[0];
@@ -54,6 +56,7 @@ sub gettagcontent{
 	return ($content,$rest);
 }
 
+#clean sentence from bad char
 sub clean_sentence{
 	$result = $_[0];
 	
@@ -72,11 +75,15 @@ sub clean_sentence{
 	return $result;
 }
 
+# process doc 
+# get tag of dokno, judul, and tag
+# create boolean model of unstem and stem word
 sub process_doc{
 	my $str; my $content; my $rest;
 	$str= $_[0];
 	($content,$rest)=gettagcontent($str,2,"dok","doc");
 	while (1){
+		# jika udah habis
 		if($content eq "" and $rest eq ""){
 			last;
 		}
@@ -85,6 +92,7 @@ sub process_doc{
 		($judul,$content)=gettagcontent($content,1,"judul");
 		($teks,$content)=gettagcontent($content,1,"teks");
 		
+		#clean sentence
 		$judul_prev = $judul;
 		$judul = clean_sentence($judul);
 		$teks = clean_sentence($teks);
@@ -96,7 +104,7 @@ sub process_doc{
 		$judul =~ s/\s+$//;
 		#print $no;
 		
-		
+		# buat model booleannya untuk stem and unstem
 		$titleofdoc{$no}=$judul_prev;
 		@words = split(/\s+/,$judul);
 		for $word(@words){
@@ -131,6 +139,7 @@ sub process_doc{
 	}
 }
 
+# cari query dari file kueri.txt
 sub searchquery{
 	open hasil , ">hasil.txt";
 	
@@ -147,9 +156,9 @@ sub searchquery{
 			#print $query1."my query\n";
 			my $ii = 0;
 			for $no(sort keys %modelbool){
-				#print $no;
-				#if($modelbool{$no}{$query1}){
+				# gunakan metod parse tree utk parse bool exp
 				@query_letter = split(//,$query1);
+				# jika ada print ke file
 				if(parsetree(0,length($query1)-1, length($query1),$no, \@query_letter,\%modelbool,$NOSTEM)){
 					print hasil "    - ".$titleofdoc{$no}."\n";
 					$ii = $ii+1;
@@ -160,12 +169,13 @@ sub searchquery{
 			}
 		# with stemming
 		}else{
-			#$query1 = stemming($query);
-			#print $query1;
+			
 			$query1 = $query;
 			my $ii = 0;
 			for $no(sort keys %modelbool_stem){
+				# gunakan metod parse tree utk parse bool exp
 				@query_letter = split(//,$query1);
+				# jika ada print ke file
 				if(parsetree(0,length($query1)-1, length($query1),$no, \@query_letter,\%modelbool_stem,$STEM)){
 					#print hasil $no."\n";
 					print hasil "    - ".$titleofdoc{$no}."\n";
@@ -317,17 +327,6 @@ sub stemming{
 	}
 	$all_suffix=$suffix2.(join "", @suffix1).$all_suffix;
 	
-	#print output "$_[0]*****";
-	#print output $all_affix." ".$word." ".$all_suffix;
-	#print output "*****\n";
-	
-	# hitung jumlah frekuensi kata yang mempunyai imbuhan
-	# simpan root words dan word yang belum diubah
-	#if($all_affix.$all_suffix=~/^[a-z\-]+$/){
-	#	$imbuhan{$all_affix.";".$all_suffix}++;
-	#	$root_words{$all_affix.";".$all_suffix}.=";".$word;
-	#	$prev_words{$all_affix.";".$all_suffix}.=";".$_[0];
-	#}
 	return $word;
 }
 
@@ -598,6 +597,8 @@ sub handle_te{
 $STEM = 0;
 $NOSTEM = 1;
 
+# parse tree input boolean expression string
+# 
 sub parsetree{
 	my $start;	my $end;my $len;my $doknum; my @letters; my %model; my $type;
 	$start = $_[0];
@@ -641,6 +642,7 @@ sub parsetree{
 		}else{
 			if($kurung == 0){
 				# check and
+				# jika ada and, manggil method scr rekursif
 				if($ii <= $end-2 and $letters[$ii] eq "A" and $letters[$ii+1] eq "N" and $letters[$ii+2] eq "D" ){
 					#print "AND -->".$start." ".($ii-1)." --- ".($ii+3)." ".$end."\n";
 					my $left = parsetree($start,$ii-1,$len,$dok_num,\@letters,\%model,$type);
@@ -648,6 +650,7 @@ sub parsetree{
 					return ($left and $right);
 				}
 				# check or
+				# jika ada or, manggil method scr rekursif
 				elsif($ii <= $end-1 and $letters[$ii] eq "O" and $letters[$ii+1] eq "R" ){
 					#print "OR -->".$start." ".($ii-1)." --- ".($ii+2)." ".$end."\n";
 					my $left = parsetree($start,$ii-1,$len,$dok_num,\@letters,\%model,$type);
@@ -655,6 +658,7 @@ sub parsetree{
 					return ($left or $right);
 				}
 				# check not
+				# jika ada not, manggil method scr rekursif
 				elsif($ii <= $end-2 and $letters[$ii] eq "N" and $letters[$ii+1] eq "O" and $letters[$ii+2] eq "T" ){
 					#print "NOT -->".($ii+3)." ".$end."\n";
 					my $left = parsetree($ii+3,$end,$len,$dok_num,\@letters,\%model,$type);
@@ -663,9 +667,10 @@ sub parsetree{
 			}
 		}
 	}
+	
+	# base case 
 	if($nokurung){
-		# state 0 trim left space
-		# state 1 concat char
+		# trim space
 		#print "\nno kurung".$start." ".$end."\n";
 		my $str="";
 		for $ii($start..$end){
@@ -684,12 +689,14 @@ sub parsetree{
 			$str = $str.$letters[$ii];
 		}
 		
+		# do stemming if asked
 		if($type == $STEM){
 			$str = stemming($str);
 		}
 		#print "base case " .$str."\n";
 		return $model{$dok_num}{$str};
 	}
+	
 	
 	#print "masuk".$start.$end;
 	return parsetree($start,$end,$len,$dok_num,\@letters,\%model,$type);
@@ -701,41 +708,19 @@ sub parsetree{
 # count time
 $start = time;
 
+# baca seluruh file
 print "read doc...\n";
 $file = readfile("korpus.txt");
 
+# proses file dan hasilkan model boolean
 print "build model...\n";
 process_doc($file);
 
+# process query
 print "query...\n";
 searchquery();
 
-
-
-#open(file,">stem.txt");
-#for $word(sort keys %modelbool_stem){
-#		print file $word."\n";
-#}
-#close(file);
-#open(file,">asli.txt");
-#for $word(sort keys %modelbool){
-#		print file $word."\n";
-#}
-#close(file);
-#print "\n\n";
-
-# finish
 $end = time;
 
-print "elapsed times: ".($end-$start)."\n";
-
-
-#$query = "((((listrik AND    dia   ) OR (mau))))";
-#if(parsetree(0,length($query)-1, length($query),"ha_4", split(//,$query))){
-#	print "hasil: ";
-#	print "true\n"
-#}else{
-#	print "hasil: ";
-#	print "false\n"
-#}
+print "elapsed times: ".($end-$start)." seconds\n";
 
